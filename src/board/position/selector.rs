@@ -84,9 +84,8 @@ impl BoardPositionSelector<'_> {
         }
 
         self.selected
-        .extend(self.handle_collisions_and_positions_validity(temp));
+            .extend(self.handle_collisions_and_positions_validity(temp));
 
-        
         let mut temp = vec![];
         c = 1;
         while i - c >= 0 && j + c <= 7 {

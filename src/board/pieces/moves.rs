@@ -5,8 +5,9 @@ use crate::board::position::Position;
 use crate::board::{Board, Cell};
 use crate::Turn;
 
-pub fn get_legal_moves(piece_pos: Position, board: &mut Board, turn: &Turn) -> Vec<Position> {
-    let unchecked_moves = get_legal_moves_unchecked(piece_pos, board);
+pub fn get_legal_moves(piece_pos: Position, board: &Board, turn: &Turn) -> Vec<Position> {
+    let mut board = board.clone();
+    let unchecked_moves = get_legal_moves_unchecked(piece_pos, &board);
     let mut legal_moves = Vec::with_capacity(unchecked_moves.len());
 
     let original_piece_cell = board.look_up_mut_cell(piece_pos).unwrap();
@@ -55,14 +56,15 @@ pub fn get_legal_moves(piece_pos: Position, board: &mut Board, turn: &Turn) -> V
             if board.is_king_safe(color) {
                 legal_moves.push(possible_move);
             }
-            let cell = board.look_up_mut_cell(possible_move).unwrap(); // because of the borrow checker rules. we need to look up the cell again
+            let mut cell = board.look_up_mut_cell(possible_move).unwrap(); // because of the borrow checker rules. we need to look up the cell again
             mover = cell.take();
 
             if let MoveKind::EnPassant = move_kind {
-                let cell = board
+                cell = board
                     .look_up_mut_cell(Position::new(piece_pos.i(), possible_move.j()))
                     .unwrap();
-                *cell = target_cell;
+                *cell = target_cell; // restores the piece that was at that position
+
                 board.passant_pos = Some(Position::new(piece_pos.i(), possible_move.j()));
             } else {
                 *cell = target_cell; // restores the piece that was at that position
@@ -197,7 +199,6 @@ pub fn get_legal_moves_unchecked(piece_pos: Position, board: &Board) -> Vec<Posi
 
             let passant_pos = board.passant_pos;
             if let Some(passant_pos) = passant_pos {
-
                 let pawn_passant = board.look_up_cell(passant_pos).unwrap().as_ref().unwrap();
 
                 let is_same_row = piece_pos.i() == passant_pos.i();

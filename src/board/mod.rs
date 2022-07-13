@@ -3,13 +3,12 @@ use crate::board::position::Position;
 use crate::Turn;
 use std::collections::HashMap;
 
-pub mod cell;
 pub mod pieces;
 pub mod position;
 
 pub const BOARD_SIZE: u8 = 64;
 
-type Cell = Option<Piece>;
+pub type Cell = Option<Piece>;
 
 #[derive(Debug, Clone)]
 pub struct Board {
@@ -19,9 +18,18 @@ pub struct Board {
     passant_pos: Option<Position>,
     passant_tracker: u8,
 }
+
 impl Board {
     pub fn is_king_safe(&self, color: PieceColor) -> bool {
         self.is_safe_for(self.look_up_king_pos(color), color)
+    }
+
+    pub fn get_all_pieces_pos_by_color(&self, color: PieceColor) -> Vec<Position> {
+        self.cells
+            .iter()
+            .filter(|(_, cell)| cell.is_some() && cell.as_ref().unwrap().color == color)
+            .map(|(pos, _)| *pos)
+            .collect()
     }
 
     pub fn is_checkmate_for(&self, color: PieceColor) -> bool {
@@ -29,13 +37,16 @@ impl Board {
             PieceColor::White => PieceColor::Black,
             PieceColor::Black => PieceColor::White,
         };
-        let mut cloned = self.clone();
-        !self.is_king_safe(color) && self.cells
-            .iter()
-            .filter(|(_, cell)| cell.is_some())
-            .map(|(pos, cell)| (pos, cell.as_ref().unwrap()))
-            .filter(|(_, piece)| piece.color == color)
-            .all(|(pos, _)| pieces::moves::get_legal_moves(*pos, &mut cloned, &color).is_empty())
+        !self.is_king_safe(color)
+            && self
+                .cells
+                .iter()
+                .filter(|(_, cell)| cell.is_some())
+                .map(|(pos, cell)| (pos, cell.as_ref().unwrap()))
+                .filter(|(_, piece)| piece.color == color)
+                .all(|(pos, _)| {
+                    pieces::moves::get_legal_moves(*pos, self, &color).is_empty()
+                })
     }
 }
 
@@ -113,6 +124,12 @@ impl Board {
     }
 }
 
+impl Default for Board {
+    fn default() -> Self {
+        Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR")
+    }
+}
+#[derive(Debug)]
 pub enum BoardMoveError {
     NotYourTurn,
     NoPieceOnCell,
