@@ -57,8 +57,8 @@ pub struct ChessSettings {
 impl ChessSettings {
     fn new(board: Board, turn: Turn, players: (Player, Player)) -> Self {
         Self {
-            board: board,
-            turn: turn,
+            board,
+            turn,
             players,
         }
     }
@@ -69,12 +69,12 @@ mod chess_ui {
     use chess::board::pieces::{moves, PieceColor, PieceKind};
     use chess::board::position::Position;
     use chess::board::{Board, Cell};
+    use chess::computer::ComputerEngine;
     use chess::Turn;
     use iced::button::StyleSheet;
     use iced::pure::widget::{button, Button, Column, Row};
     use iced::pure::{Application, Element};
     use iced::{Background, Color, Length, Svg};
-    use rand::Rng;
 
     use crate::{ChessSettings, Player};
 
@@ -90,8 +90,8 @@ mod chess_ui {
     impl ChessUI {
         fn new(board: Board, turn: Turn, players: (Player, Player)) -> Self {
             Self {
-                board: board,
-                turn: turn,
+                board,
+                turn,
                 players,
                 current_selected: None,
                 legal_moves: Vec::new(),
@@ -160,7 +160,7 @@ mod chess_ui {
                             if piece.is_some() {
                                 self.current_selected = Some(pos);
                                 self.legal_moves =
-                                    moves::get_legal_moves(pos, &mut self.board, &self.turn);
+                                    moves::get_legal_moves(pos, &self.board, &self.turn);
                             } else {
                                 self.legal_moves.clear();
                                 self.current_selected = None;
@@ -199,18 +199,9 @@ mod chess_ui {
                         }
                     }
                     Player::Computer => {
-                        let positions = self.board.get_all_pieces_pos_by_color(self.turn);
-                        let all_legal_moves: Vec<(Position, Vec<Position>)> = positions
-                            .iter()
-                            .map(|pos| {
-                                (
-                                    *pos,
-                                    moves::get_legal_moves(*pos, &mut self.board, &self.turn),
-                                )
-                            })
-                            .filter(|(_, legal)| !legal.is_empty())
-                            .collect();
-                        let (to, fr) = pick_legal_move(all_legal_moves);
+                        let engine = ComputerEngine;
+
+                        let (fr, to) = engine.pick_move(&self.board, self.turn);
 
                         self.board.move_piece(&mut self.turn, fr, to).unwrap();
                     }
@@ -218,7 +209,7 @@ mod chess_ui {
             }
 
             let king_pos = self.board.look_up_king_pos(self.turn);
-            if !self.board.is_safe_for(king_pos, self.turn) {
+            if !self.board.is_king_safe(self.turn) {
                 self.king_state = KingState::Check(king_pos);
             } else {
                 self.king_state = KingState::Safe;
@@ -279,7 +270,7 @@ mod chess_ui {
                         .padding(11)
                         .width(Length::Units(100))
                         .height(Length::Units(100))
-                        .style(SquareStyleSheet { color: color });
+                        .style(SquareStyleSheet { color });
                     row = row.push(square);
                 }
                 column = column.push(row);
@@ -308,14 +299,5 @@ mod chess_ui {
             });
         }
         piece_str
-    }
-
-    fn pick_legal_move(legal_moves: Vec<(Position, Vec<Position>)>) -> (Position, Position) {
-        let fr_rand = rand::thread_rng().gen_range(0..legal_moves.len());
-        let fr = &legal_moves[fr_rand];
-        let to_rand = rand::thread_rng().gen_range(0..fr.1.len());
-        let to = fr.1[to_rand];
-        let fr = fr.0;
-        (to, fr)
     }
 }

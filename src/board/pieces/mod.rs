@@ -17,14 +17,14 @@ impl Piece {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub enum PieceKind {
-    King,
-    Queen,
-    Knight,
-    Bishop,
-    Rook,
-    Pawn,
+    King = 5,
+    Queen = 4,
+    Rook = 3,
+    Bishop = 2,
+    Knight = 1,
+    Pawn = 0,
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]

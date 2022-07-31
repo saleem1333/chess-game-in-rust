@@ -5,14 +5,40 @@ use crate::board::position::Position;
 use crate::board::{Board, Cell};
 use crate::Turn;
 
+use super::PieceColor;
+
+pub fn is_safe_to_move(fr: Position, to: Position, board: &Board, color: PieceColor) -> bool {
+    let mut board = board.clone();
+    let original_piece_cell = board.look_up_mut_cell(fr).unwrap();
+    let mut mover = original_piece_cell.take();
+
+    assert_ne!(mover.as_ref().unwrap().kind, PieceKind::King, "there is already get_legal_moves for the king");
+
+    let cell = board.look_up_mut_cell(to).unwrap();
+    let target_cell: Cell = cell.take(); // saves the piece at the target position
+    *cell = mover; // moves the original piece to the target position
+    let res = board.is_safe_unchecked(to, color);
+
+    let cell = board.look_up_mut_cell(to).unwrap(); // because of the borrow checker rules. we need to look up the cell again
+    mover = cell.take();
+
+    *cell = target_cell;
+
+    let original_piece_cell = board.look_up_mut_cell(fr).unwrap();
+    *original_piece_cell = mover; // restores the original position of the piece
+
+    res
+}
 pub fn get_legal_moves(piece_pos: Position, board: &Board, turn: &Turn) -> Vec<Position> {
     let mut board = board.clone();
     let unchecked_moves = get_legal_moves_unchecked(piece_pos, &board);
     let mut legal_moves = Vec::with_capacity(unchecked_moves.len());
 
     let original_piece_cell = board.look_up_mut_cell(piece_pos).unwrap();
+
     let mut mover = original_piece_cell.take();
     let color = mover.as_ref().unwrap().color;
+
     if *turn == color {
         for possible_move in unchecked_moves {
             // no need to worry about the look_up_mut_cell's efficiency since it is O(1)
@@ -32,7 +58,7 @@ pub fn get_legal_moves(piece_pos: Position, board: &Board, turn: &Turn) -> Vec<P
                     1
                 };
                 // if king is in check or there is an enemy piece cutting off the way for the king
-                if !board.is_safe_for(piece_pos, color)
+                if !board.is_safe_unchecked(piece_pos, color)
                     || !legal_moves
                         .contains(&(possible_move.i(), possible_move.j() + padding).into())
                 {
@@ -313,5 +339,5 @@ fn get_move_kind(
     if piece_fr.kind == PieceKind::Pawn && piece_to.is_none() && fr.j() != to.j() {
         return MoveKind::EnPassant;
     }
-    return MoveKind::Regular;
+     MoveKind::Regular
 }

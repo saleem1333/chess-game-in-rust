@@ -21,7 +21,7 @@ pub struct Board {
 
 impl Board {
     pub fn is_king_safe(&self, color: PieceColor) -> bool {
-        self.is_safe_for(self.look_up_king_pos(color), color)
+        self.is_safe_unchecked(self.look_up_king_pos(color), color)
     }
 
     pub fn get_all_pieces_pos_by_color(&self, color: PieceColor) -> Vec<Position> {
@@ -63,7 +63,7 @@ impl Board {
 
         for i in 0..8_i8 {
             for j in 0..8_i8 {
-                cells.insert(Position::new(i, j), Cell::None);
+                cells.insert(Position::new(i, j), None);
             }
         }
         let chars = s.chars();
@@ -92,7 +92,7 @@ impl Board {
                     };
                     cells.insert(
                         Position::new(row as i8, col as i8),
-                        Cell::Some(Piece::new(kind, color)),
+                        Some(Piece::new(kind, color)),
                     );
                     col += 1;
                 }
@@ -140,7 +140,7 @@ pub enum BoardMoveError {
 impl Board {
     fn is_valid_position(pos: Position) -> bool {
         let range = 0..=7_i8;
-        return range.contains(&pos.i()) && range.contains(&pos.j());
+        range.contains(&pos.i()) && range.contains(&pos.j())
     }
 }
 
@@ -152,7 +152,7 @@ impl Board {
     }
 
     #[inline]
-    fn look_up_mut_cell(&mut self, pos: Position) -> Option<&mut Cell> {
+    pub fn look_up_mut_cell(&mut self, pos: Position) -> Option<&mut Cell> {
         self.cells.get_mut(&pos)
     }
 
@@ -166,12 +166,20 @@ impl Board {
             .expect("King doesn't exist on board! if you're calling get_legal_moves then you should probably use get_legal_moves_unchecked instead").0
     }
 
-    pub fn is_safe_for(&self, pos: Position, color: PieceColor) -> bool {
+    pub fn is_safe_unchecked(&self, pos: Position, color: PieceColor) -> bool {
         self.cells
             .iter()
             .filter(|(_, cell)| cell.is_some() && cell.as_ref().unwrap().color != color)
             .all(|(pos1, _)| !pieces::moves::get_legal_moves_unchecked(*pos1, self).contains(&pos))
     }
+
+    pub fn is_safe(&self, pos: Position, color: PieceColor) -> bool {
+        self.cells
+            .iter()
+            .filter(|(_, cell)| cell.is_some() && cell.as_ref().unwrap().color != color)
+            .all(|(pos1, cell)| !pieces::moves::get_legal_moves(*pos1, self, &cell.as_ref().unwrap().color).contains(&pos))
+    }
+    
 
     pub fn move_piece(
         &mut self,
@@ -191,7 +199,7 @@ impl Board {
             return Err(BoardMoveError::NotYourTurn);
         }
 
-        return if pieces::moves::get_legal_moves(fr, self, turn).contains(&to) {
+        if pieces::moves::get_legal_moves(fr, self, turn).contains(&to) {
             // to see if self.passant_pos changes after move_force
             // if it actually changes to something else then we have
             // to set the self.passant_tracker back to 1
@@ -212,6 +220,6 @@ impl Board {
             Ok(())
         } else {
             Err(BoardMoveError::Illegal)
-        };
+        }
     }
 }
